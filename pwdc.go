@@ -16,6 +16,7 @@ type flags struct {
 	physical bool
 	colorize bool
 	space    bool
+	tree     bool
 }
 
 func parseFlags() flags {
@@ -24,12 +25,14 @@ func parseFlags() flags {
 	physical := flag.Bool("P", false, "Use physical path")
 	colorize := flag.Bool("C", false, "Colorize each directory level")
 	space := flag.Bool("S", false, "Add spaces between directory names")
+	tree := flag.Bool("T", false, "Display the path in a tree-like format")
 
 	// 小文字のエイリアスも設定
 	flag.BoolVar(logical, "l", true, "Use logical path (default)")
 	flag.BoolVar(physical, "p", false, "Use physical path")
 	flag.BoolVar(colorize, "c", false, "Colorize each directory level")
 	flag.BoolVar(space, "s", false, "Add spaces between directory names")
+	flag.BoolVar(tree, "t", false, "Display the path in a tree-like format")
 
 	flag.Parse()
 
@@ -38,6 +41,7 @@ func parseFlags() flags {
 		physical: *physical,
 		colorize: *colorize,
 		space:    *space,
+		tree:     *tree,
 	}
 }
 
@@ -63,13 +67,42 @@ func main() {
 		os.Exit(1)
 	}
 
-	// デフォルトの出力
-	if !opts.colorize && !opts.space {
-		fmt.Println(pwd)
+	// 階段状出力が有効な場合
+	if opts.tree {
+		printTreeFormat(pwd, opts)
 		return
 	}
 
-	// パスを色分け・フォーマットする
+	// 通常のフォーマット出力
+	printStandardFormat(pwd, opts)
+}
+
+func printTreeFormat(pwd string, opts flags) {
+	segments := strings.Split(pwd, string(os.PathSeparator))
+	for i, segment := range segments {
+		if segment == "" {
+			fmt.Println("/")
+			continue
+		}
+
+		prefix := strings.Repeat("  ", i) // 階段状のインデント
+
+		if opts.colorize {
+			// 階層ごとに異なる色を設定
+			c := color.New(color.Attribute(30 + (i % 8))) // 8色をループ
+			segment = c.Sprint(segment)
+		}
+
+		// スペースを加えるオプションの処理
+		if opts.space {
+			segment = strings.ReplaceAll(segment, "/", " / ")
+		}
+
+		fmt.Printf("%s%s\n", prefix, segment)
+	}
+}
+
+func printStandardFormat(pwd string, opts flags) {
 	segments := strings.Split(pwd, string(os.PathSeparator))
 	var result string
 	for i, segment := range segments {
